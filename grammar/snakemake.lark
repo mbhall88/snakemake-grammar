@@ -179,7 +179,7 @@ star_expr: "*" expr
 ?await_expr: AWAIT? atom_expr
 AWAIT: "await"
 
-?atom_expr: atom_expr "(" [arguments] ")"      -> funccall
+?atom_expr: atom_expr "(" [arguments] ")"    -> funccall
           | atom_expr "[" subscriptlist "]"  -> getitem
           | atom_expr "." name               -> getattr
           | atom
@@ -308,7 +308,7 @@ directive_keyword: "include" -> include
 // Rules and terminals for Snakemake rules
 ruledef: "rule" [NAME] ":" _NEWLINE ruleparams+
 
-ruleparams: ioparams
+ruleparams: ioparams | priority
 
 ioparams: iokeywords ":" [_NEWLINE] parameter_list
 
