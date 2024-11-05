@@ -1,7 +1,6 @@
-
-
-
-
+// ====================================================================================
+// PYTHON GRAMMAR
+// ====================================================================================
 single_input: _NEWLINE | simple_stmt | compound_stmt _NEWLINE
 file_input: (_NEWLINE | stmt)*
 eval_input: testlist _NEWLINE*
@@ -293,9 +292,9 @@ cs_list{item}: item ("," item)* ","?
 _cs_list{item}: item ("," item)* ","?
 
 
-// =========================================================================
+// ====================================================================================
 // SNAKEMAKE GRAMMAR
-// =========================================================================
+// ====================================================================================
 %extend stmt: snakemake
 
 // Global workflow Snakemake grammar
@@ -309,8 +308,11 @@ directive_keyword: "include" -> include
 // Rules and terminals for Snakemake rules
 ruledef: "rule" [NAME] ":" _NEWLINE ruleparams+
 
-ruleparams: norunparams ":" [_NEWLINE] parameter_list
-norunparams: "input" -> rule_input 
+ruleparams: ioparams
+
+ioparams: iokeywords ":" [_NEWLINE] parameter_list
+
+iokeywords: "input" -> rule_input 
         | "output" -> rule_output 
         | "log" -> rule_log
 
@@ -318,3 +320,5 @@ parameter_list: argvalue ("," [_NEWLINE] argvalue)*  ("," [_NEWLINE] [ starargs 
          | starargs
          | kwargs
          | comprehension{test}
+
+priority: "priority" ":" test

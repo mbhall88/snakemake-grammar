@@ -1,10 +1,4 @@
-from snakemake_parser import lark
-
-from pytest import mark
-
-
-
-
+import lark
 from pytest import mark
 
 @mark.parametrize("snakefile", [
