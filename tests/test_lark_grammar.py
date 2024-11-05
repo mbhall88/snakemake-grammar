@@ -183,6 +183,533 @@ def test_parse_snakemake_param():
     assert rule_output.children[0].children[0].value == "output1.txt"
 
 
+class TestIoDirectives:
+    def test_input_with_single_file(self):
+        snakefile = """
+        rule foo:
+            input: "file1.txt"
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [Tree(Token("RULE", "string"), [Token("STRING", '"file1.txt"')])],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_output_with_named_file(self):
+        snakefile = """
+        rule foo:
+            output: 
+                file="output1.txt",
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_output")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        Token("RULE", "argvalue"),
+                        [
+                            Tree(
+                                "var",
+                                [Tree(Token("RULE", "name"), [Token("NAME", "file")])],
+                            ),
+                            Tree(
+                                Token("RULE", "string"),
+                                [Token("STRING", '"output1.txt"')],
+                            ),
+                        ],
+                    ),
+                    None,
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_output_with_multiple_files(self):
+        snakefile = """
+        rule foo:
+            output: 
+                "output1.txt",
+                "output2.txt",
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_output")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(Token("RULE", "string"), [Token("STRING", '"output1.txt"')]),
+                    Tree(Token("RULE", "string"), [Token("STRING", '"output2.txt"')]),
+                    None,
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_comment_and_inline_if_else(self):
+        snakefile = """
+        rule all:
+            input:
+                # only expect the output if test.txt is present before workflow execution
+                "out.txt" if exists("test.txt") else [],
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        Token("RULE", "test"),
+                        [
+                            Tree(
+                                Token("RULE", "string"), [Token("STRING", '"out.txt"')]
+                            ),
+                            Tree(
+                                "funccall",
+                                [
+                                    Tree(
+                                        "var",
+                                        [
+                                            Tree(
+                                                Token("RULE", "name"),
+                                                [Token("NAME", "exists")],
+                                            )
+                                        ],
+                                    ),
+                                    Tree(
+                                        Token("RULE", "arguments"),
+                                        [
+                                            Tree(
+                                                Token("RULE", "string"),
+                                                [Token("STRING", '"test.txt"')],
+                                            )
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            Tree("list", []),
+                        ],
+                    ),
+                    None,
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_rule_dependency(self):
+        snakefile = """
+        rule all:
+            input:
+                rules.myrule.output,
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        "getattr",
+                        [
+                            Tree(
+                                "getattr",
+                                [
+                                    Tree(
+                                        "var",
+                                        [
+                                            Tree(
+                                                Token("RULE", "name"),
+                                                [Token("NAME", "rules")],
+                                            )
+                                        ],
+                                    ),
+                                    Tree(
+                                        Token("RULE", "name"), [Token("NAME", "myrule")]
+                                    ),
+                                ],
+                            ),
+                            Tree(Token("RULE", "name"), [Token("NAME", "output")]),
+                        ],
+                    ),
+                    None,
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_log_with_file_list(self):
+        snakefile = """
+        rule foo:
+            log: 
+                ["log1.txt", "log2.txt"]
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_log")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        "list",
+                        [
+                            Tree(
+                                Token("RULE", "string"), [Token("STRING", '"log1.txt"')]
+                            ),
+                            Tree(
+                                Token("RULE", "string"), [Token("STRING", '"log2.txt"')]
+                            ),
+                        ],
+                    )
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_log_with_unnamed_and_named_files(self):
+        snakefile = """
+        rule foo:
+            log: 
+                "log1.txt",
+                file="log2.txt"
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_log")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(Token("RULE", "string"), [Token("STRING", '"log1.txt"')]),
+                    Tree(
+                        Token("RULE", "argvalue"),
+                        [
+                            Tree(
+                                "var",
+                                [Tree(Token("RULE", "name"), [Token("NAME", "file")])],
+                            ),
+                            Tree(
+                                Token("RULE", "string"), [Token("STRING", '"log2.txt"')]
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_lambda(self):
+        snakefile = """
+        rule foo:
+            input: lambda wildcards: "data/{}.txt".format(wildcards.sample)
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        Token("RULE", "lambdef"),
+                        [
+                            Tree(
+                                Token("RULE", "lambda_params"),
+                                [
+                                    Tree(
+                                        Token("RULE", "name"),
+                                        [Token("NAME", "wildcards")],
+                                    ),
+                                    None,
+                                ],
+                            ),
+                            Tree(
+                                "funccall",
+                                [
+                                    Tree(
+                                        "getattr",
+                                        [
+                                            Tree(
+                                                Token("RULE", "string"),
+                                                [Token("STRING", '"data/{}.txt"')],
+                                            ),
+                                            Tree(
+                                                Token("RULE", "name"),
+                                                [Token("NAME", "format")],
+                                            ),
+                                        ],
+                                    ),
+                                    Tree(
+                                        Token("RULE", "arguments"),
+                                        [
+                                            Tree(
+                                                "getattr",
+                                                [
+                                                    Tree(
+                                                        "var",
+                                                        [
+                                                            Tree(
+                                                                Token("RULE", "name"),
+                                                                [
+                                                                    Token(
+                                                                        "NAME",
+                                                                        "wildcards",
+                                                                    )
+                                                                ],
+                                                            )
+                                                        ],
+                                                    ),
+                                                    Tree(
+                                                        Token("RULE", "name"),
+                                                        [Token("NAME", "sample")],
+                                                    ),
+                                                ],
+                                            )
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_function(self):
+        snakefile = """
+        rule foo:
+            input: func
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [Tree("var", [Tree(Token("RULE", "name"), [Token("NAME", "func")])])],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_output_with_expand(self):
+        snakefile = """
+        rule foo:
+            output: expand("output_{i}.txt", i=range(5))
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_output")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        "funccall",
+                        [
+                            Tree(
+                                "var",
+                                [
+                                    Tree(
+                                        Token("RULE", "name"), [Token("NAME", "expand")]
+                                    )
+                                ],
+                            ),
+                            Tree(
+                                Token("RULE", "arguments"),
+                                [
+                                    Tree(
+                                        Token("RULE", "string"),
+                                        [Token("STRING", '"output_{i}.txt"')],
+                                    ),
+                                    Tree(
+                                        Token("RULE", "argvalue"),
+                                        [
+                                            Tree(
+                                                "var",
+                                                [
+                                                    Tree(
+                                                        Token("RULE", "name"),
+                                                        [Token("NAME", "i")],
+                                                    )
+                                                ],
+                                            ),
+                                            Tree(
+                                                "funccall",
+                                                [
+                                                    Tree(
+                                                        "var",
+                                                        [
+                                                            Tree(
+                                                                Token("RULE", "name"),
+                                                                [
+                                                                    Token(
+                                                                        "NAME", "range"
+                                                                    )
+                                                                ],
+                                                            )
+                                                        ],
+                                                    ),
+                                                    Tree(
+                                                        Token("RULE", "arguments"),
+                                                        [
+                                                            Tree(
+                                                                Token("RULE", "number"),
+                                                                [
+                                                                    Token(
+                                                                        "DEC_NUMBER",
+                                                                        "5",
+                                                                    )
+                                                                ],
+                                                            )
+                                                        ],
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_star_unpack(self):
+        snakefile = """
+        rule:
+            input:
+                *myfunc(),
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        Token("RULE", "smk_starargs"),
+                        [
+                            Tree(
+                                Token("RULE", "stararg"),
+                                [
+                                    Tree(
+                                        "funccall",
+                                        [
+                                            Tree(
+                                                "var",
+                                                [
+                                                    Tree(
+                                                        Token("RULE", "name"),
+                                                        [Token("NAME", "myfunc")],
+                                                    )
+                                                ],
+                                            ),
+                                            None,
+                                        ],
+                                    )
+                                ],
+                            ),
+                            None,
+                        ],
+                    )
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+    def test_input_with_star_unpack_kwarg_unpack(self):
+        """https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#input-functions-and-unpack"""
+        snakefile = """
+        rule:
+            input:
+                *myfunc1(),
+                **myfunc2(),
+        """
+        tree = LARK.parse(snakefile)
+
+        subtree = list(tree.find_data(Token("RULE", "rule_input")))[0]
+        expected = [
+            Tree(
+                Token("RULE", "parameter_list"),
+                [
+                    Tree(
+                        Token("RULE", "smk_starargs"),
+                        [
+                            Tree(
+                                Token("RULE", "stararg"),
+                                [
+                                    Tree(
+                                        "funccall",
+                                        [
+                                            Tree(
+                                                "var",
+                                                [
+                                                    Tree(
+                                                        Token("RULE", "name"),
+                                                        [Token("NAME", "myfunc1")],
+                                                    )
+                                                ],
+                                            ),
+                                            None,
+                                        ],
+                                    )
+                                ],
+                            ),
+                            Tree(
+                                Token("RULE", "smk_kwargs"),
+                                [
+                                    Tree(
+                                        "funccall",
+                                        [
+                                            Tree(
+                                                "var",
+                                                [
+                                                    Tree(
+                                                        Token("RULE", "name"),
+                                                        [Token("NAME", "myfunc2")],
+                                                    )
+                                                ],
+                                            ),
+                                            None,
+                                        ],
+                                    )
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            )
+        ]
+
+        assert subtree.children == expected
+
+
 class TestPriority:
     def test_with_int(self):
         snakefile = """

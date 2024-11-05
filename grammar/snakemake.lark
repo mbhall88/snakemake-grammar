@@ -308,17 +308,18 @@ directive_keyword: "include" -> include
 // Rules and terminals for Snakemake rules
 ruledef: "rule" [NAME] ":" _NEWLINE ruleparams+
 
-ruleparams: ioparams | priority
+ruleparams: rule_input | rule_output | rule_log | priority
 
-ioparams: iokeywords ":" [_NEWLINE] parameter_list
+rule_input: "input" ":" [_NEWLINE] parameter_list
+rule_output: "output" ":" [_NEWLINE] parameter_list
+rule_log: "log" ":" [_NEWLINE] parameter_list
 
-iokeywords: "input" -> rule_input 
-        | "output" -> rule_output 
-        | "log" -> rule_log
-
-parameter_list: argvalue ("," [_NEWLINE] argvalue)*  ("," [_NEWLINE] [ starargs | kwargs])?
-         | starargs
-         | kwargs
+parameter_list: argvalue ("," [_NEWLINE] argvalue)*  ("," [_NEWLINE] [smk_starargs | smk_kwargs])?
+         | smk_starargs
+         | smk_kwargs
          | comprehension{test}
+
+smk_starargs: stararg ("," [_NEWLINE] stararg)* ("," [_NEWLINE] argvalue)* ["," [_NEWLINE] smk_kwargs] ["," [_NEWLINE]]
+smk_kwargs: "**" test ("," [_NEWLINE] argvalue)* ["," [_NEWLINE]]
 
 priority: "priority" ":" test
